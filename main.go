@@ -57,7 +57,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		Expires:  expirationTime,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode, // required for cross-site requests
-		Secure:   false,                 // must be true on HTTPS
+		Secure:   true,                  // must be true on HTTPS
 		Path:     "/",
 	})
 
@@ -95,7 +95,7 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Now().Add(-time.Hour),
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
-		Secure:   false,
+		Secure:   true,
 		Path:     "/",
 	})
 	json.NewEncoder(w).Encode(map[string]string{"message": "logged out"})
