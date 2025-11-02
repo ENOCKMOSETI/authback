@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -109,7 +110,7 @@ func main() {
 
 	// For now, allow all CORS (we’ll tighten later)
 	handler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedOrigins:   []string{os.Getenv("BASE_URL")},
 		AllowCredentials: true,
 		AllowedMethods:   []string{"GET", "POST", "DELETE"},
 		AllowedHeaders:   []string{"Content-Type"},
