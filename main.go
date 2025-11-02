@@ -51,20 +51,29 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    tokenString,
+		Expires:  expirationTime,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode, // required for cross-site requests
+		Secure:   false,                 // must be true on HTTPS
+		Path:     "/",
+	})
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 }
 
 func protectedHandler(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, "missing token", http.StatusUnauthorized)
+	cookie, err := r.Cookie("token")
+	if err != nil {
+		http.Error(w, "missing cookie", http.StatusUnauthorized)
 		return
 	}
 
-	tokenStr := authHeader[len("Bearer "):]
 	claims := &Claims{}
-
-	tkn, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+	tkn, err := jwt.ParseWithClaims(cookie.Value, claims, func(t *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
 	})
 
@@ -78,16 +87,32 @@ func protectedHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func logoutHandler(w http.ResponseWriter, r *http.Request) {
+	// Invalidate the cookie by setting an expired date
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    "",
+		Expires:  time.Now().Add(-time.Hour),
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+		Secure:   false,
+		Path:     "/",
+	})
+	json.NewEncoder(w).Encode(map[string]string{"message": "logged out"})
+}
+
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/login", loginHandler)
 	mux.HandleFunc("/protected", protectedHandler)
+	mux.HandleFunc("/logout", logoutHandler)
 
 	// For now, allow all CORS (we’ll tighten later)
 	handler := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:3000"},
-		AllowedMethods: []string{"GET", "POST"},
-		AllowedHeaders: []string{"Authorization", "Content-Type"},
+		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowCredentials: true,
+		AllowedMethods:   []string{"GET", "POST", "DELETE"},
+		AllowedHeaders:   []string{"Content-Type"},
 	}).Handler(mux)
 
 	fmt.Println("Server running on :8080")
